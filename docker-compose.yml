@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  db:
+    container_name: db_crypto_mysql
+    build:
+      context: .
+      dockerfile: ./docker/mysql/Dockerfile
+    ports:
+      - ${DB_PORT}:3306
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      TZ: 'Asia/Tokyo'
+    volumes:
+      - ./db:/var/lib/mysql
+
+  web:
+    container_name: web_crypto_rails
+    build:
+      context: .
+      dockerfile: ./docker/rails/Dockerfile
+      # .envの環境変数をWORKDIRという引数の名前で登録し、./docker/rails/Dockerfileに渡す
+      args:
+        WORKDIR: ${WORKDIR}
+    volumes:
+      - ./src/rails:/${WORKDIR}
+    # .envの環境変数を各引数の名前で、railsの環境変数として登録
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    ports:
+      - ${RAILS_PORT}:3000
+    # dbコンテナ起動後にwebコンテナを起動
+    depends_on:
+      - db
+
+  app:
+    container_name: app_crypto_vue
+    build:
+      context: .
+      dockerfile: ./docker/vue/Dockerfile
+      # .envの環境変数をWORKDIRという引数の名前で登録し、./docker/vue/Dockerfileに渡す
+      args:
+        WORKDIR: ${WORKDIR}
+    volumes:
+      - ./src/vue:/${WORKDIR}
+    # viteの仕様のためか、5173でないと何故か繋げない…
+    ports:
+      - ${VUE_PORT}:5173
+    # webコンテナ起動後にappコンテナを起動
+    depends_on:
+      - web
